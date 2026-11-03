@@ -12,7 +12,12 @@ def test_default_config_loads() -> None:
     assert config.random_seed == 42
     assert config.default_top_k == 10
     assert config.max_top_k >= config.default_top_k
+    assert config.eda_default_max_rows == 100_000
+    assert config.eda_histogram_bins == 40
     assert config.raw_data_dir == PROJECT_ROOT / "data" / "raw"
+    assert (
+        config.foodcom_recipes_path == PROJECT_ROOT / "data" / "raw" / "foodcom" / "RAW_recipes.csv"
+    )
 
 
 def test_missing_config_raises_clear_error(tmp_path: Path) -> None:

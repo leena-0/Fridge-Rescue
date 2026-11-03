@@ -15,6 +15,10 @@ datasets:
   recipenlg:
     recipes: data/raw/recipenlg/full_dataset.csv
 
+eda:
+  default_max_rows: 100000
+  histogram_bins: 40
+
 recommendation:
   default_top_k: 10
   max_top_k: 50
