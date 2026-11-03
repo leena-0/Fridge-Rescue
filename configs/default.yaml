@@ -1,0 +1,20 @@
+project:
+  name: Fridge Rescue
+  random_seed: 42
+
+paths:
+  raw_data_dir: data/raw
+  processed_data_dir: data/processed
+  model_dir: models
+  output_dir: outputs
+
+datasets:
+  foodcom:
+    recipes: data/raw/foodcom/RAW_recipes.csv
+    interactions: data/raw/foodcom/RAW_interactions.csv
+  recipenlg:
+    recipes: data/raw/recipenlg/full_dataset.csv
+
+recommendation:
+  default_top_k: 10
+  max_top_k: 50
