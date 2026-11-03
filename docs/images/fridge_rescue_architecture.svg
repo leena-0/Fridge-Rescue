@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1333" height="1058" viewBox="0 0 1333 1058" role="img" aria-labelledby="title desc">
+  <title id="title">Fridge Rescue planned system architecture</title>
+  <desc id="desc">Food.com and RecipeNLG data flow through preprocessing, recommendation models, application output, and two evaluation protocols.</desc>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b8882" />
+    </marker>
+    <style>
+      .node { stroke-width: 1.2; }
+      .source { fill: #f3f1eb; stroke: #85817a; }
+      .process { fill: #dff3ef; stroke: #16866f; }
+      .model { fill: #eeeeff; stroke: #766ce0; }
+      .flow { fill: none; stroke: #8b8882; stroke-width: 3; marker-end: url(#arrow); }
+      .flow-dashed { fill: none; stroke: #8b8882; stroke-width: 3; stroke-dasharray: 8 7; marker-end: url(#arrow); }
+      .heading { font-family: Arial, Helvetica, sans-serif; font-size: 29px; font-weight: 700; fill: #454541; text-anchor: middle; }
+      .heading-green { font-family: Arial, Helvetica, sans-serif; font-size: 28px; font-weight: 700; fill: #005947; text-anchor: middle; }
+      .heading-purple { font-family: Arial, Helvetica, sans-serif; font-size: 28px; font-weight: 700; fill: #38318e; text-anchor: middle; }
+      .body { font-family: Arial, Helvetica, sans-serif; font-size: 25px; font-weight: 400; fill: #5a5955; text-anchor: middle; }
+      .body-green { font-family: Arial, Helvetica, sans-serif; font-size: 25px; font-weight: 400; fill: #006d59; text-anchor: middle; }
+      .body-purple { font-family: Arial, Helvetica, sans-serif; font-size: 25px; font-weight: 400; fill: #5047be; text-anchor: middle; }
+      .note { font-family: Arial, Helvetica, sans-serif; font-size: 24px; font-weight: 400; fill: #55544f; }
+    </style>
+  </defs>
+
+  <rect width="1333" height="1058" fill="#ffffff" />
+
+  <!-- Data sources -->
+  <rect class="node source" x="112" y="33" width="521" height="113" rx="18" />
+  <text class="heading" x="372.5" y="80">Food.com</text>
+  <text class="body" x="372.5" y="114">Recipes + interactions</text>
+
+  <rect class="node source" x="713" y="33" width="520" height="113" rx="18" />
+  <text class="heading" x="973" y="80">RecipeNLG</text>
+  <text class="body" x="973" y="114">External content test only</text>
+
+  <!-- Preprocessing -->
+  <rect class="node process" x="112" y="225" width="521" height="145" rx="18" />
+  <text class="heading-green" x="372.5" y="271">Food.com preprocessing</text>
+  <text class="body-green" x="372.5" y="310">Normalize, deduplicate</text>
+  <text class="body-green" x="372.5" y="347">Per-user split 80/10/10</text>
+
+  <rect class="node process" x="713" y="225" width="520" height="145" rx="18" />
+  <text class="heading-green" x="973" y="271">RecipeNLG preprocessing</text>
+  <text class="body-green" x="973" y="310">Normalize, deduplicate</text>
+  <text class="body-green" x="973" y="347">Remove Food.com overlap</text>
+
+  <!-- Models -->
+  <rect class="node model" x="172" y="472" width="402" height="113" rx="18" />
+  <text class="heading-purple" x="373" y="519">Item KNN</text>
+  <text class="body-purple" x="373" y="553">Collaborative, top-k</text>
+
+  <rect class="node model" x="773" y="472" width="400" height="113" rx="18" />
+  <text class="heading-purple" x="973" y="519">Content-based</text>
+  <text class="body-purple" x="973" y="553">Jaccard similarity</text>
+
+  <!-- Application -->
+  <rect class="node source" x="32" y="665" width="381" height="113" rx="18" />
+  <text class="heading" x="222.5" y="712">User input</text>
+  <text class="body" x="222.5" y="746">Ingredients, time filter</text>
+
+  <rect class="node model" x="472" y="665" width="402" height="113" rx="18" />
+  <text class="heading-purple" x="673" y="712">Hybrid ranker</text>
+  <text class="body-purple" x="673" y="746">Weighted score</text>
+
+  <rect class="node source" x="943" y="665" width="330" height="113" rx="18" />
+  <text class="heading" x="1108" y="712">Output</text>
+  <text class="body" x="1108" y="746">Ranked, missing items</text>
+
+  <!-- Evaluation -->
+  <rect class="node process" x="272" y="913" width="502" height="113" rx="18" />
+  <text class="heading-green" x="523" y="960">Protocol A</text>
+  <text class="body-green" x="523" y="994">Compares all 3 methods</text>
+
+  <rect class="node process" x="833" y="913" width="400" height="113" rx="18" />
+  <text class="heading-green" x="1033" y="960">Protocol B</text>
+  <text class="body-green" x="1033" y="994">Content-only retrieval</text>
+
+  <!-- Data and preprocessing arrows -->
+  <path class="flow" d="M 372.5 146 V 222" />
+  <path class="flow" d="M 973 146 V 222" />
+  <path class="flow" d="M 372.5 370 V 469" />
+  <path class="flow" d="M 573 370 V 421 H 893 V 469" />
+  <path class="flow" d="M 1053 370 V 469" />
+
+  <!-- Model and application arrows -->
+  <path class="flow" d="M 373 585 V 626 H 573 V 662" />
+  <path class="flow" d="M 973 585 V 626 H 773 V 662" />
+  <path class="flow" d="M 413 721.5 H 469" />
+  <path class="flow" d="M 874 721.5 H 940" />
+  <path class="flow" d="M 673 778 V 910" />
+
+  <!-- Cold-start and content-only evaluation arrows -->
+  <path class="flow-dashed" d="M 1113 585 V 662" />
+  <text class="note" x="1129" y="626">cold start</text>
+  <path class="flow" d="M 1173 497 H 1314 V 969 H 1236" />
+</svg>

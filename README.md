@@ -4,6 +4,16 @@
 
 Food.com 데이터를 이용해 콘텐츠 기반 추천과 협업 필터링을 개발하고, RecipeNLG 데이터로 고정된 콘텐츠 기반 추천기의 외부 검색 성능을 확인합니다.
 
+## Planned System Architecture
+
+![Fridge Rescue planned system architecture](docs/images/fridge_rescue_architecture.svg)
+
+- Food.com의 레시피와 사용자 상호작용은 콘텐츠 기반 추천과 Item KNN 개발에 사용합니다.
+- Hybrid ranker는 콘텐츠 점수와 Item KNN의 예측 선호도를 결합합니다.
+- 사용자 이력이 없는 cold-start 상황에서는 콘텐츠 기반 추천 결과를 사용합니다.
+- Protocol A는 Food.com에서 Content-based, Item KNN, Hybrid 세 방법을 비교합니다.
+- Protocol B는 Food.com 및 RecipeNLG에서 콘텐츠 기반 레시피 검색 성능만 평가합니다.
+
 ## 개발 환경
 
 - Python 3.11 이상 3.14 미만
@@ -51,20 +61,62 @@ uv run ruff format --check .
 
 ## 데이터 준비
 
-원본 데이터는 라이선스와 용량 문제로 Git에 올리지 않습니다. 각 팀원이 아래 출처에서 직접 내려받아 `data/raw/`에 배치해야 합니다.
+원본 데이터는 라이선스와 용량 문제로 Git에 올리지 않습니다. 각 팀원이 아래 출처에서 직접 내려받은 뒤 정해진 경로에 배치해야 합니다.
+
+먼저 저장 디렉터리를 만듭니다.
+
+```bash
+mkdir -p data/raw/foodcom data/raw/recipenlg
+```
 
 ### Food.com Recipes and Interactions
 
-- 출처: [Kaggle Food.com Recipes and User Interactions](https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions)
-- 기본 입력 파일
-  - `data/raw/foodcom/RAW_recipes.csv`
-  - `data/raw/foodcom/RAW_interactions.csv`
+1. [Kaggle Food.com Recipes and User Interactions](https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions)에 로그인합니다.
+2. **Download** 버튼으로 데이터셋 ZIP 파일을 내려받습니다.
+3. 내려받은 ZIP 파일을 `data/raw/foodcom/`에 압축 해제합니다.
+4. 다음 두 파일이 정확한 경로에 있는지 확인합니다.
+
+```text
+data/raw/foodcom/RAW_recipes.csv
+data/raw/foodcom/RAW_interactions.csv
+```
+
+macOS 또는 Linux에서는 저장소 루트에서 다음과 같이 압축을 해제할 수 있습니다.
+
+```bash
+unzip ~/Downloads/food-com-recipes-and-user-interactions.zip -d data/raw/foodcom
+```
+
+Kaggle CLI를 이미 설정했다면 다음 방법도 사용할 수 있습니다.
+
+```bash
+kaggle datasets download \
+  -d shuyangli94/food-com-recipes-and-user-interactions \
+  -p data/raw/foodcom \
+  --unzip
+```
 
 ### RecipeNLG
 
-- 출처: [RecipeNLG 프로젝트](https://recipenlg.cs.put.poznan.pl/)
-- 내려받은 레시피 CSV 파일을 `data/raw/recipenlg/`에 배치합니다.
-- 실제 파일명과 위치는 `configs/default.yaml`에서 변경할 수 있습니다.
+1. [RecipeNLG 공식 프로젝트](https://recipenlg.cs.put.poznan.pl/)에서 데이터 이용 조건을 확인합니다.
+2. 프로젝트 사이트의 데이터셋 다운로드 안내에 따라 압축 파일을 내려받습니다.
+3. 압축을 해제한 뒤 전체 레시피 CSV를 다음 경로에 배치합니다.
+
+```text
+data/raw/recipenlg/full_dataset.csv
+```
+
+내려받은 CSV의 파일명이 다르면 `full_dataset.csv`로 변경하거나 `configs/default.yaml`의 `datasets.recipenlg.recipes` 값을 실제 경로로 수정합니다.
+
+### 배치 결과 확인
+
+```bash
+ls -lh data/raw/foodcom/RAW_recipes.csv
+ls -lh data/raw/foodcom/RAW_interactions.csv
+ls -lh data/raw/recipenlg/full_dataset.csv
+```
+
+세 파일이 모두 표시되면 데이터 로더를 실행할 준비가 된 것입니다. RecipeNLG 파일은 크기가 크므로 다운로드와 압축 해제를 위한 충분한 디스크 공간을 확보하세요.
 
 데이터 출처의 이용 및 재배포 조건을 확인하고 원본 파일을 저장소에 커밋하지 마세요.
 
