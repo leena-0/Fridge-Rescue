@@ -24,6 +24,10 @@ preprocessing:
   audit_sample_size: 50
   ingredient_synonyms: configs/ingredient_synonyms.yaml
 
+splitting:
+  min_train_user_interactions: 5
+  min_train_recipe_interactions: 5
+
 recommendation:
   default_top_k: 10
   max_top_k: 50

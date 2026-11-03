@@ -16,6 +16,8 @@ def test_default_config_loads() -> None:
     assert config.eda_histogram_bins == 40
     assert config.preprocessing_default_max_rows == 100_000
     assert config.preprocessing_audit_sample_size == 50
+    assert config.min_train_user_interactions == 5
+    assert config.min_train_recipe_interactions == 5
     assert config.raw_data_dir == PROJECT_ROOT / "data" / "raw"
     assert (
         config.foodcom_recipes_path == PROJECT_ROOT / "data" / "raw" / "foodcom" / "RAW_recipes.csv"

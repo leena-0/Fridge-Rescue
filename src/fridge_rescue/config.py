@@ -28,6 +28,8 @@ class AppConfig:
     preprocessing_default_max_rows: int
     preprocessing_audit_sample_size: int
     ingredient_synonyms_path: Path
+    min_train_user_interactions: int
+    min_train_recipe_interactions: int
     default_top_k: int
     max_top_k: int
 
@@ -59,6 +61,7 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     recipenlg = _required(datasets, "recipenlg", "datasets")
     eda = _required(raw_config, "eda", "root")
     preprocessing = _required(raw_config, "preprocessing", "root")
+    splitting = _required(raw_config, "splitting", "root")
     recommendation = _required(raw_config, "recommendation", "root")
 
     random_seed = _required(project, "random_seed", "project")
@@ -66,6 +69,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     eda_histogram_bins = _required(eda, "histogram_bins", "eda")
     preprocessing_default_max_rows = _required(preprocessing, "default_max_rows", "preprocessing")
     preprocessing_audit_sample_size = _required(preprocessing, "audit_sample_size", "preprocessing")
+    min_train_user_interactions = _required(splitting, "min_train_user_interactions", "splitting")
+    min_train_recipe_interactions = _required(
+        splitting, "min_train_recipe_interactions", "splitting"
+    )
     default_top_k = _required(recommendation, "default_top_k", "recommendation")
     max_top_k = _required(recommendation, "max_top_k", "recommendation")
 
@@ -79,6 +86,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         raise ValueError("preprocessing.default_max_rows must be a positive integer")
     if not isinstance(preprocessing_audit_sample_size, int) or preprocessing_audit_sample_size <= 0:
         raise ValueError("preprocessing.audit_sample_size must be a positive integer")
+    if not isinstance(min_train_user_interactions, int) or min_train_user_interactions <= 0:
+        raise ValueError("splitting.min_train_user_interactions must be a positive integer")
+    if not isinstance(min_train_recipe_interactions, int) or min_train_recipe_interactions <= 0:
+        raise ValueError("splitting.min_train_recipe_interactions must be a positive integer")
     if not isinstance(default_top_k, int) or default_top_k <= 0:
         raise ValueError("recommendation.default_top_k must be a positive integer")
     if not isinstance(max_top_k, int) or max_top_k < default_top_k:
@@ -101,6 +112,8 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         preprocessing_audit_sample_size=preprocessing_audit_sample_size,
         ingredient_synonyms_path=PROJECT_ROOT
         / _required(preprocessing, "ingredient_synonyms", "preprocessing"),
+        min_train_user_interactions=min_train_user_interactions,
+        min_train_recipe_interactions=min_train_recipe_interactions,
         default_top_k=default_top_k,
         max_top_k=max_top_k,
     )
