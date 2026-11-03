@@ -209,6 +209,28 @@ outputs/tables/data_split_report.json
 outputs/tables/recipenlg_overlap_removals.csv
 ```
 
+### Jaccard 콘텐츠 기반 추천
+
+사용 가능한 재료와 레시피 재료 집합의 Jaccard similarity로 레시피를 검색합니다. 결과에는 레시피 재료 coverage, 일치 재료, 부족 재료와 부족 개수가 함께 포함됩니다.
+
+```bash
+uv run python -m fridge_rescue.recommenders.content_based \
+  egg milk onion \
+  --top-k 10 \
+  --max-minutes 30
+```
+
+여러 단어로 이루어진 재료는 따옴표로 묶습니다.
+
+```bash
+uv run python -m fridge_rescue.recommenders.content_based \
+  "green onion" egg rice
+```
+
+조리 시간 제한은 랭킹 전에 hard filter로 적용됩니다. 제한이 있을 때 조리 시간이 없거나 0 이하인 레시피는 제외하며, 조건에 맞는 결과가 없으면 제한을 임의로 완화하지 않습니다. 동점은 Jaccard, coverage, 부족 재료 수, 제목, 레시피 ID 순서로 고정 정렬합니다.
+
+RecipeNLG 외부 카탈로그를 검색할 때는 `--dataset recipenlg`를 사용합니다. RecipeNLG에는 신뢰할 수 있는 조리 시간 정보가 없으므로 외부 검색에서는 `--max-minutes`를 사용하지 않습니다.
+
 ## 프로젝트 구조
 
 ```text
