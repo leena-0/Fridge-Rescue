@@ -179,6 +179,36 @@ outputs/tables/ingredient_normalization_examples.csv
 
 `preprocessing_report.json`에는 정규화 전후 레코드 수, 제거 사유, 중복 재료 제거 수가 기록됩니다. 동의어를 추가할 때는 서로 바꿔도 의미가 유지되는 표현만 `configs/ingredient_synonyms.yaml`에 명시적으로 추가하고 표본을 다시 확인합니다.
 
+### 누수 방지 데이터 분할과 외부 테스트 데이터
+
+먼저 전체 레시피 전처리를 완료한 뒤 Food.com 평점 분할과 RecipeNLG 외부 테스트 카탈로그를 생성합니다.
+
+```bash
+uv run python -m fridge_rescue.data.preprocessing --dataset all --max-rows 0
+uv run python -m fridge_rescue.data.splitting
+```
+
+빠른 동작 확인에서는 Food.com 상호작용 수를 제한할 수 있습니다.
+
+```bash
+uv run python -m fridge_rescue.data.splitting --max-interactions 10000
+```
+
+평점 0·결측·범위 밖 평점은 명시적 선호도에서 제외하고, 중복 사용자-레시피 평점은 가장 최근 기록을 유지합니다. 사용자별 80/10/10 분할은 고정 시드로 수행하며, 검증과 테스트를 각각 한 건씩 만들 수 없는 사용자는 train에만 포함합니다. 사용자와 레시피의 최소 활동량 기준은 train 데이터만 사용해 계산합니다.
+
+RecipeNLG에서는 Food.com 레시피 ID가 포함된 URL과 정규화된 제목·재료 지문을 검사해 중복을 제거합니다. 이 결과는 콘텐츠 기반 외부 검색 테스트에만 사용하며 사용자 평점 정확도 평가에는 사용하지 않습니다.
+
+```text
+data/processed/foodcom/splits/train.parquet
+data/processed/foodcom/splits/validation.parquet
+data/processed/foodcom/splits/test.parquet
+data/processed/foodcom/splits/user_activity.parquet
+data/processed/foodcom/splits/recipe_activity.parquet
+data/processed/recipenlg/external_test_recipes.parquet
+outputs/tables/data_split_report.json
+outputs/tables/recipenlg_overlap_removals.csv
+```
+
 ## 프로젝트 구조
 
 ```text
