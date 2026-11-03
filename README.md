@@ -51,6 +51,18 @@ pip 환경에서는 다음 명령을 사용합니다.
 streamlit run app.py
 ```
 
+화면에서 쉼표로 구분한 재료, 선택적인 최대 조리 시간과 추천 개수를 입력할 수 있습니다. 결과에는 Jaccard 점수, coverage, 일치 재료와 부족 재료가 표시됩니다. 기본 예시는 `egg, milk, onion`입니다.
+
+현재 Content-based 모드는 신규 사용자와 기존 사용자 모두 사용할 수 있습니다. Collaborative와 Hybrid 선택 구조는 준비되어 있지만 해당 모델이 연결되기 전까지 기존 사용자 화면에 미구현 상태로 표시됩니다. 신규 사용자는 사용자 이력이 필요한 방식을 선택해도 Content-based로 fallback합니다.
+
+전처리된 Food.com 파일이 없다면 먼저 다음 명령을 실행합니다.
+
+```bash
+uv run python -m fridge_rescue.data.preprocessing \
+  --dataset foodcom \
+  --max-rows 0
+```
+
 ## 테스트와 코드 검사
 
 ```bash
