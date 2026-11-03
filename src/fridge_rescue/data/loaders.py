@@ -71,16 +71,38 @@ def load_foodcom(
 ) -> FoodComData:
     """Load Food.com recipe and interaction CSV files with schema checks."""
 
+    recipes = load_foodcom_recipes(recipes_path, max_rows=max_rows)
+    interactions = load_foodcom_interactions(interactions_path, max_rows=max_rows)
+
+    return FoodComData(recipes=recipes, interactions=interactions)
+
+
+def load_foodcom_recipes(
+    recipes_path: str | Path,
+    *,
+    max_rows: int | None = None,
+) -> pd.DataFrame:
+    """Load Food.com recipes with schema checks and numeric type coercion."""
+
     recipes = _read_csv(recipes_path, FOODCOM_RECIPE_COLUMNS, max_rows=max_rows)
+    recipes["id"] = pd.to_numeric(recipes["id"], errors="coerce").astype("Int64")
+    recipes["minutes"] = pd.to_numeric(recipes["minutes"], errors="coerce")
+    recipes["n_ingredients"] = pd.to_numeric(recipes["n_ingredients"], errors="coerce")
+    return recipes
+
+
+def load_foodcom_interactions(
+    interactions_path: str | Path,
+    *,
+    max_rows: int | None = None,
+) -> pd.DataFrame:
+    """Load Food.com interactions with schema checks and numeric type coercion."""
+
     interactions = _read_csv(
         interactions_path,
         FOODCOM_INTERACTION_COLUMNS,
         max_rows=max_rows,
     )
-
-    recipes["id"] = pd.to_numeric(recipes["id"], errors="coerce").astype("Int64")
-    recipes["minutes"] = pd.to_numeric(recipes["minutes"], errors="coerce")
-    recipes["n_ingredients"] = pd.to_numeric(recipes["n_ingredients"], errors="coerce")
     interactions["user_id"] = pd.to_numeric(interactions["user_id"], errors="coerce").astype(
         "Int64"
     )
@@ -88,8 +110,7 @@ def load_foodcom(
         "Int64"
     )
     interactions["rating"] = pd.to_numeric(interactions["rating"], errors="coerce")
-
-    return FoodComData(recipes=recipes, interactions=interactions)
+    return interactions
 
 
 def load_recipenlg(

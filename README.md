@@ -148,6 +148,37 @@ outputs/tables/eda_summary.json
 outputs/tables/eda_missing_values.csv
 ```
 
+### 재료 정규화와 레시피 전처리
+
+Food.com의 `ingredients`와 RecipeNLG의 `NER` 재료 엔터티에 동일한 정규화 규칙을 적용합니다. 소문자·공백·특수문자를 정리하고, 수량과 단위를 제거하며, `configs/ingredient_synonyms.yaml`에 명시된 보수적인 동의어만 치환합니다. RecipeNLG의 수량이 포함된 원문 `ingredients` 컬럼도 결과에 그대로 보존됩니다.
+
+```bash
+uv run python -m fridge_rescue.data.preprocessing --dataset all
+```
+
+빠른 확인은 행 수를 줄여 실행할 수 있습니다.
+
+```bash
+uv run python -m fridge_rescue.data.preprocessing --dataset all --max-rows 10000
+```
+
+최종 분석용 전체 전처리는 `--max-rows 0`으로 실행합니다.
+
+```bash
+uv run python -m fridge_rescue.data.preprocessing --dataset all --max-rows 0
+```
+
+전처리 결과에는 원본 재료 목록과 정규화된 재료 목록이 함께 저장됩니다.
+
+```text
+data/processed/foodcom/recipes.parquet
+data/processed/recipenlg/recipes.parquet
+outputs/tables/preprocessing_report.json
+outputs/tables/ingredient_normalization_examples.csv
+```
+
+`preprocessing_report.json`에는 정규화 전후 레코드 수, 제거 사유, 중복 재료 제거 수가 기록됩니다. 동의어를 추가할 때는 서로 바꿔도 의미가 유지되는 표현만 `configs/ingredient_synonyms.yaml`에 명시적으로 추가하고 표본을 다시 확인합니다.
+
 ## 프로젝트 구조
 
 ```text
