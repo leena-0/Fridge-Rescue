@@ -120,6 +120,34 @@ ls -lh data/raw/recipenlg/full_dataset.csv
 
 데이터 출처의 이용 및 재배포 조건을 확인하고 원본 파일을 저장소에 커밋하지 마세요.
 
+### 데이터 로더와 EDA 실행
+
+두 데이터셋을 함께 검증하고 EDA 요약 및 그래프를 생성합니다. 기본 실행은 각 테이블의 앞 100,000행을 사용해 개발 중 메모리 사용량을 제한합니다.
+
+```bash
+uv run python -m fridge_rescue.data.eda --dataset all
+```
+
+빠른 확인을 위해 행 수를 더 줄일 수 있습니다.
+
+```bash
+uv run python -m fridge_rescue.data.eda --dataset all --max-rows 10000
+```
+
+전체 데이터를 분석하려면 `--max-rows 0`을 사용합니다. RecipeNLG는 약 2GB이므로 실행 시간이 오래 걸릴 수 있습니다.
+
+```bash
+uv run python -m fridge_rescue.data.eda --dataset all --max-rows 0
+```
+
+결과는 다음 위치에 저장됩니다.
+
+```text
+outputs/figures/
+outputs/tables/eda_summary.json
+outputs/tables/eda_missing_values.csv
+```
+
 ## 프로젝트 구조
 
 ```text
