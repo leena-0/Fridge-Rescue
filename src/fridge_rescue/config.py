@@ -25,6 +25,9 @@ class AppConfig:
     recipenlg_recipes_path: Path
     eda_default_max_rows: int
     eda_histogram_bins: int
+    preprocessing_default_max_rows: int
+    preprocessing_audit_sample_size: int
+    ingredient_synonyms_path: Path
     default_top_k: int
     max_top_k: int
 
@@ -55,11 +58,14 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     foodcom = _required(datasets, "foodcom", "datasets")
     recipenlg = _required(datasets, "recipenlg", "datasets")
     eda = _required(raw_config, "eda", "root")
+    preprocessing = _required(raw_config, "preprocessing", "root")
     recommendation = _required(raw_config, "recommendation", "root")
 
     random_seed = _required(project, "random_seed", "project")
     eda_default_max_rows = _required(eda, "default_max_rows", "eda")
     eda_histogram_bins = _required(eda, "histogram_bins", "eda")
+    preprocessing_default_max_rows = _required(preprocessing, "default_max_rows", "preprocessing")
+    preprocessing_audit_sample_size = _required(preprocessing, "audit_sample_size", "preprocessing")
     default_top_k = _required(recommendation, "default_top_k", "recommendation")
     max_top_k = _required(recommendation, "max_top_k", "recommendation")
 
@@ -69,6 +75,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         raise ValueError("eda.default_max_rows must be a positive integer")
     if not isinstance(eda_histogram_bins, int) or eda_histogram_bins <= 0:
         raise ValueError("eda.histogram_bins must be a positive integer")
+    if not isinstance(preprocessing_default_max_rows, int) or preprocessing_default_max_rows <= 0:
+        raise ValueError("preprocessing.default_max_rows must be a positive integer")
+    if not isinstance(preprocessing_audit_sample_size, int) or preprocessing_audit_sample_size <= 0:
+        raise ValueError("preprocessing.audit_sample_size must be a positive integer")
     if not isinstance(default_top_k, int) or default_top_k <= 0:
         raise ValueError("recommendation.default_top_k must be a positive integer")
     if not isinstance(max_top_k, int) or max_top_k < default_top_k:
@@ -87,6 +97,10 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         recipenlg_recipes_path=PROJECT_ROOT / _required(recipenlg, "recipes", "datasets.recipenlg"),
         eda_default_max_rows=eda_default_max_rows,
         eda_histogram_bins=eda_histogram_bins,
+        preprocessing_default_max_rows=preprocessing_default_max_rows,
+        preprocessing_audit_sample_size=preprocessing_audit_sample_size,
+        ingredient_synonyms_path=PROJECT_ROOT
+        / _required(preprocessing, "ingredient_synonyms", "preprocessing"),
         default_top_k=default_top_k,
         max_top_k=max_top_k,
     )

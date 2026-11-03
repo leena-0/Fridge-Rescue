@@ -1,0 +1,20 @@
+version: 1
+
+# Keep this mapping deliberately conservative and reviewable. Each key and value
+# is normalized before lookup, so punctuation and letter case are not needed here.
+synonyms:
+  cilantro leaves: cilantro
+  eggs: egg
+  egg whites: egg white
+  egg yolks: egg yolk
+  fresh cilantro leaves: cilantro
+  fresh garlic: garlic
+  fresh parsley: parsley
+  garlic clove: garlic
+  garlic cloves: garlic
+  green onions: green onion
+  red onions: red onion
+  scallion: green onion
+  scallions: green onion
+  white onions: white onion
+  yellow onions: yellow onion

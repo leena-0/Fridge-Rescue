@@ -19,6 +19,11 @@ eda:
   default_max_rows: 100000
   histogram_bins: 40
 
+preprocessing:
+  default_max_rows: 100000
+  audit_sample_size: 50
+  ingredient_synonyms: configs/ingredient_synonyms.yaml
+
 recommendation:
   default_top_k: 10
   max_top_k: 50
