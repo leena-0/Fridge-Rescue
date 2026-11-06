@@ -431,8 +431,11 @@ def run_data_split(
     foodcom_recipes = _read_processed_recipes(
         config.processed_data_dir / "foodcom" / "recipes.parquet"
     )
-    recipenlg_recipes = _read_processed_recipes(
-        config.processed_data_dir / "recipenlg" / "recipes.parquet"
+    recipenlg_path = config.processed_data_dir / "recipenlg" / "recipes.parquet"
+    recipenlg_recipes = (
+        _read_processed_recipes(recipenlg_path)
+        if recipenlg_path.is_file()
+        else None
     )
 
     processed_foodcom_ids = set(
@@ -454,7 +457,11 @@ def run_data_split(
         min_user_interactions=config.min_train_user_interactions,
         min_recipe_interactions=config.min_train_recipe_interactions,
     )
-    external = build_external_recipenlg_catalog(foodcom_recipes, recipenlg_recipes)
+    external = (
+        build_external_recipenlg_catalog(foodcom_recipes, recipenlg_recipes)
+        if recipenlg_recipes is not None
+        else None
+    )
 
     split_dir = config.processed_data_dir / "foodcom" / "splits"
     split_dir.mkdir(parents=True, exist_ok=True)
@@ -464,18 +471,30 @@ def run_data_split(
     splits.users.to_parquet(split_dir / "user_activity.parquet", index=False)
     splits.recipes.to_parquet(split_dir / "recipe_activity.parquet", index=False)
 
-    external_dir = config.processed_data_dir / "recipenlg"
-    external_dir.mkdir(parents=True, exist_ok=True)
-    external.recipes.to_parquet(external_dir / "external_test_recipes.parquet", index=False)
-
     table_dir = config.output_dir / "tables"
     table_dir.mkdir(parents=True, exist_ok=True)
-    external.removals.to_csv(table_dir / "recipenlg_overlap_removals.csv", index=False)
+
+    if external is not None:
+        external_dir = config.processed_data_dir / "recipenlg"
+        external_dir.mkdir(parents=True, exist_ok=True)
+        external.recipes.to_parquet(
+            external_dir / "external_test_recipes.parquet", index=False
+        )
+        external.removals.to_csv(
+            table_dir / "recipenlg_overlap_removals.csv", index=False
+        )
     report = {
         "max_interactions": max_interactions,
         "foodcom_catalog_alignment": catalog_alignment,
         "foodcom_interactions": splits.report,
-        "recipenlg_external_catalog": external.report,
+        "recipenlg_external_catalog": (
+            external.report
+            if external is not None
+            else {
+                "status": "skipped",
+                "reason": "RecipeNLG data not available",
+            }
+        ),
     }
     (table_dir / "data_split_report.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False),
@@ -508,11 +527,14 @@ def main() -> None:
         f"{split['test_interactions']:,} test"
     )
     external = report["recipenlg_external_catalog"]
-    print(
-        "RecipeNLG external catalog: "
-        f"{external['input_recipenlg_recipes']:,} input -> "
-        f"{external['retained_external_test_recipes']:,} retained"
-    )
+    if external.get("status") == "skipped":
+        print("RecipeNLG external catalog: skipped (data not available)")
+    else:
+        print(
+            "RecipeNLG external catalog: "
+            f"{external['input_recipenlg_recipes']:,} input -> "
+            f"{external['retained_external_test_recipes']:,} retained"
+        )
     print(f"Split audit saved under: {config.output_dir / 'tables'}")
 
 

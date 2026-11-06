@@ -1,13 +1,16 @@
 """Streamlit entry point for Fridge Rescue."""
 
+from __future__ import annotations
+
 import pandas as pd
 import streamlit as st
 
 from fridge_rescue.config import load_config
 from fridge_rescue.data.preprocessing import load_ingredient_synonyms
 from fridge_rescue.recommenders.content_based import ContentBasedRecommender
+from fridge_rescue.recommenders.hybrid import HybridRecommender
+from fridge_rescue.recommenders.item_knn_optimized import ItemKNNRecommender
 from fridge_rescue.services.recommendation import (
-    ModelUnavailableError,
     RecommendationMode,
     RecommendationRequest,
     RecommendationService,
@@ -16,174 +19,136 @@ from fridge_rescue.services.recommendation import (
 
 MODE_LABELS = {
     "Content-based": RecommendationMode.CONTENT,
-    "Collaborative": RecommendationMode.COLLABORATIVE,
+    "Collaborative (Item-KNN)": RecommendationMode.COLLABORATIVE,
     "Hybrid": RecommendationMode.HYBRID,
 }
-USER_MODE_LABELS = {
-    "신규 사용자": UserMode.NEW,
-    "기존 사용자": UserMode.EXISTING,
-}
+USER_MODE_LABELS = {"신규 사용자": UserMode.NEW, "기존 사용자": UserMode.EXISTING}
 
 
-@st.cache_resource(show_spinner="레시피 검색 인덱스를 준비하고 있습니다...")
+@st.cache_resource(show_spinner="추천 모델을 불러오고 있습니다...")
 def _load_recommendation_service(
-    recipe_path: str,
-    synonym_path: str,
-    max_top_k: int,
-) -> RecommendationService:
+    recipe_path: str, train_path: str, synonym_path: str, max_top_k: int
+):
     synonyms = load_ingredient_synonyms(synonym_path)
-    recommender = ContentBasedRecommender.from_parquet(
-        recipe_path,
-        synonyms=synonyms,
-        max_top_k=max_top_k,
+    content = ContentBasedRecommender.from_parquet(
+        recipe_path, synonyms=synonyms, max_top_k=max_top_k
     )
-    return RecommendationService(recommender)
+    train = pd.read_parquet(train_path)
+    recipes = pd.read_parquet(recipe_path)
+    collaborative = ItemKNNRecommender(train, recipes, n_neighbors=50)
+    hybrid = HybridRecommender(content, collaborative)
+
+    def collaborative_ranker(request):
+        try:
+            user_id = int(request.user_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("사용자 ID는 Food.com 학습 데이터의 숫자 ID여야 합니다.") from exc
+        return collaborative.recommend(
+            user_id, top_k=request.top_k, max_minutes=request.max_minutes
+        )
+
+    def hybrid_ranker(request):
+        try:
+            user_id = int(request.user_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("사용자 ID는 Food.com 학습 데이터의 숫자 ID여야 합니다.") from exc
+        return hybrid.recommend(
+            user_id, request.ingredients, top_k=request.top_k, max_minutes=request.max_minutes
+        )
+
+    return RecommendationService(
+        content, collaborative_ranker=collaborative_ranker, hybrid_ranker=hybrid_ranker
+    )
 
 
-def _ingredient_badges(values: object, *, empty_text: str) -> str:
-    if isinstance(values, pd.Series):
-        ingredients = values.tolist()
+def _ingredient_badges(values, empty_text="없음"):
+    if isinstance(values, (list, tuple)):
+        items = list(values)
     elif hasattr(values, "tolist"):
-        ingredients = values.tolist()
-    elif isinstance(values, (list, tuple)):
-        ingredients = list(values)
+        items = values.tolist()
     else:
-        ingredients = []
-    if not ingredients:
-        return empty_text
-    return " · ".join(f"`{ingredient}`" for ingredient in ingredients)
+        items = []
+    return " · ".join(f"`{item}`" for item in items) if items else empty_text
 
 
-def _render_recommendations(results: pd.DataFrame) -> None:
+def _render_recommendations(results):
     if results.empty:
-        st.warning("조건에 맞는 레시피가 없습니다. 재료나 조리 시간 조건을 조정해 주세요.")
+        st.warning("추천 결과가 없습니다. 재료나 사용자 ID를 확인해 주세요.")
         return
-
     st.subheader(f"추천 결과 {len(results)}개")
     for rank, row in enumerate(results.itertuples(index=False), start=1):
         with st.container(border=True):
-            title_column, score_column, time_column = st.columns([5, 1.4, 1.4])
-            title_column.markdown(f"### {rank}. {row.title}")
-            title_column.caption(f"ID: {row.recipe_id} · 출처: {row.source}")
-            score_column.metric("Jaccard", f"{row.content_score:.3f}")
-            time_text = f"{row.minutes:g}분" if row.minutes is not None else "정보 없음"
-            time_column.metric("조리 시간", time_text)
+            a, b, c = st.columns([5, 1.4, 1.4])
+            a.markdown(f"### {rank}. {row.title}")
+            a.caption(f"ID: {row.recipe_id} · 출처: {row.source}")
+            score = getattr(row, "hybrid_score", None)
+            if score is None or pd.isna(score):
+                score = getattr(row, "content_score", 0.0)
+            b.metric("추천 점수", f"{float(score):.3f}")
+            minutes = row.minutes
+            c.metric("조리 시간", f"{minutes:g}분" if pd.notna(minutes) else "정보 없음")
             st.progress(
-                float(row.ingredient_coverage),
-                text=f"레시피 재료 coverage {row.ingredient_coverage:.1%}",
+                float(row.ingredient_coverage), text=f"재료 coverage {row.ingredient_coverage:.1%}"
             )
-            st.markdown(
-                "**일치 재료**  " + _ingredient_badges(row.matched_ingredients, empty_text="없음")
-            )
+            st.markdown("**일치 재료**  " + _ingredient_badges(row.matched_ingredients))
             st.markdown(
                 f"**부족 재료 {row.missing_count}개**  "
-                + _ingredient_badges(row.missing_ingredients, empty_text="추가 재료 없음")
+                + _ingredient_badges(row.missing_ingredients, "추가 재료 없음")
             )
+            if hasattr(row, "predicted_preference") and pd.notna(row.predicted_preference):
+                st.caption(f"KNN 예측 선호도: {row.predicted_preference:.2f} / 5")
 
 
 config = load_config()
-
-st.set_page_config(
-    page_title=config.project_name,
-    page_icon="🍳",
-    layout="wide",
-)
-
+st.set_page_config(page_title=config.project_name, page_icon="🍳", layout="wide")
 st.title("🍳 Fridge Rescue")
-st.caption("냉장고 속 재료로 만들 수 있는 레시피를 찾아보세요.")
+st.caption("냉장고 속 재료와 사용자 선호도를 반영해 레시피를 추천합니다.")
 
 with st.sidebar:
     st.header("추천 설정")
-    user_mode_label = st.radio(
-        "사용자 모드",
-        options=list(USER_MODE_LABELS),
-        horizontal=True,
-        help="신규 사용자는 평점 이력 없이 재료만으로 추천합니다.",
-    )
+    user_mode_label = st.radio("사용자 모드", list(USER_MODE_LABELS), horizontal=True)
     user_mode = USER_MODE_LABELS[user_mode_label]
-    user_id = None
-    if user_mode is UserMode.EXISTING:
-        user_id = st.text_input("사용자 ID", value="demo_user_001")
-
-    mode_label = st.selectbox("추천 방식", options=list(MODE_LABELS))
-    recommendation_mode = MODE_LABELS[mode_label]
-    top_k = st.slider(
-        "추천 개수",
-        min_value=1,
-        max_value=config.max_top_k,
-        value=config.default_top_k,
+    user_id = st.text_input(
+        "Food.com 사용자 ID", value="424680", disabled=user_mode is UserMode.NEW
     )
+    mode_label = st.selectbox("추천 방식", list(MODE_LABELS))
+    mode = MODE_LABELS[mode_label]
+    top_k = st.slider("추천 개수", 1, config.max_top_k, config.default_top_k)
     use_time_limit = st.checkbox("최대 조리 시간 사용")
-    max_minutes_input = st.number_input(
-        "최대 조리 시간(분)",
-        min_value=1,
-        value=30,
-        disabled=not use_time_limit,
+    max_minutes = st.number_input(
+        "최대 조리 시간(분)", min_value=1, value=30, disabled=not use_time_limit
     )
 
 st.subheader("보유 재료")
-ingredients_input = st.text_area(
-    "재료를 쉼표로 구분해 입력하세요.",
-    value="egg, milk, onion",
-    height=100,
-    placeholder="예: egg, milk, green onion",
-)
-preferred_category = st.text_input(
-    "선호 카테고리 (선택)",
-    placeholder="예: breakfast",
-)
-st.caption("카테고리 선호는 Hybrid 모델 연결 후 soft preference로 사용됩니다.")
-
-model_available = recommendation_mode is RecommendationMode.CONTENT
-if user_mode is UserMode.NEW and not model_available:
-    st.info("신규 사용자는 사용자 이력이 없어 Content-based 방식으로 자동 전환됩니다.")
-elif not model_available:
-    st.warning("Collaborative와 Hybrid 모델은 아직 연결되지 않았습니다.")
-
-submitted = st.button(
-    "레시피 추천받기",
-    type="primary",
-    use_container_width=True,
-    disabled=user_mode is UserMode.EXISTING and not model_available,
-)
+ingredients = st.text_area("재료를 쉼표로 구분해 입력하세요.", value="egg, milk, onion", height=100)
+submitted = st.button("레시피 추천받기", type="primary", use_container_width=True)
 
 if submitted:
-    if not any(item.strip() for item in ingredients_input.split(",")):
+    if not any(value.strip() for value in ingredients.split(",")):
         st.error("한 개 이상의 재료를 입력해 주세요.")
         st.stop()
-    if user_mode is UserMode.EXISTING and not (user_id or "").strip():
-        st.error("기존 사용자 모드에서는 사용자 ID를 입력해 주세요.")
-        st.stop()
-    recipe_path = config.processed_data_dir / "foodcom" / "recipes.parquet"
     try:
         service = _load_recommendation_service(
-            str(recipe_path),
+            str(config.processed_data_dir / "foodcom" / "recipes.parquet"),
+            str(config.processed_data_dir / "foodcom" / "splits" / "train.parquet"),
             str(config.ingredient_synonyms_path),
             config.max_top_k,
         )
         response = service.recommend(
             RecommendationRequest(
-                ingredients=ingredients_input,
+                ingredients=ingredients,
                 top_k=top_k,
-                max_minutes=float(max_minutes_input) if use_time_limit else None,
-                mode=recommendation_mode,
+                max_minutes=float(max_minutes) if use_time_limit else None,
+                mode=mode,
                 user_mode=user_mode,
-                user_id=user_id,
-                preferred_category=preferred_category.strip() or None,
+                user_id=user_id.strip() or None,
             )
         )
-    except FileNotFoundError:
-        st.error("전처리된 Food.com 레시피 파일이 없습니다.")
-        st.code("uv run python -m fridge_rescue.data.preprocessing --dataset foodcom --max-rows 0")
-    except (ValueError, ModelUnavailableError) as error:
-        st.error(str(error))
-    else:
         if response.fallback_reason:
             st.info(response.fallback_reason)
         _render_recommendations(response.results)
+    except (FileNotFoundError, ValueError, RuntimeError) as error:
+        st.error(str(error))
 
 st.divider()
-st.caption(
-    "추천 점수는 재료 집합의 Jaccard similarity이며, 실제 식품 안전·알레르기 적합성을 "
-    "보장하지 않습니다."
-)
+st.caption("추천 점수는 데이터 기반 참고값이며 식품 안전·알레르기 적합성을 보장하지 않습니다.")
