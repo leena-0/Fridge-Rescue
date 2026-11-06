@@ -110,6 +110,8 @@ kaggle datasets download \
 
 ### RecipeNLG
 
+> **실험 데이터 출처 안내:** 이번 프로젝트의 최종 실험에서는 공식 다운로드 경로에서 파일을 확보하지 못해 Hugging Face의 `Mahimas/recipenlg` 미러 파일을 사용했습니다. 공식 배포본과의 완전한 동일성은 별도로 검증되지 않았으므로, 데이터 출처 및 라이선스·이용 조건을 확인한 뒤 사용해야 합니다. 아래 경로는 전처리 단계에서 기대하는 파일 경로입니다.
+
 1. [RecipeNLG 공식 프로젝트](https://recipenlg.cs.put.poznan.pl/)에서 데이터 이용 조건을 확인합니다.
 2. 프로젝트 사이트의 데이터셋 다운로드 안내에 따라 압축 파일을 내려받습니다.
 3. 압축을 해제한 뒤 전체 레시피 CSV를 다음 경로에 배치합니다.
@@ -275,3 +277,101 @@ Fridge-Rescue/
 - RecipeNLG: Food.com과 중복을 제거한 뒤 콘텐츠 기반 추천의 외부 검색 테스트에만 사용
 
 RecipeNLG에는 Food.com 사용자 평점 이력이 없으므로 협업 필터링 정확도 평가에 사용하지 않습니다.
+
+
+## 최종 실험 재현 (Protocol A / B)
+
+아래 명령은 원본 데이터 다운로드, 전처리 및 데이터 분할이 완료된 뒤 저장소 루트에서 실행합니다. 대용량 RecipeNLG 처리에는 충분한 메모리와 디스크 공간이 필요합니다.
+
+### Protocol A: Food.com 선호도 순위 평가
+
+```bash
+uv run python -m fridge_rescue.evaluation.run_evaluation --users 100
+```
+
+- `--users 100`: 적격 사용자 중 100명을 고정 시드로 표본 추출합니다.
+- `--users 0`: 조건을 만족하는 전체 평가 사용자에 대해 실행합니다. 실행 시간과 메모리 사용량이 크게 늘어날 수 있습니다.
+- `--k 10`: 상위 10개 추천을 평가합니다.
+- `--neighbors 50`: Item-KNN의 이웃 수입니다.
+- `--weight-step 0.1`: Validation에서 Hybrid 가중치 탐색 간격입니다.
+
+실행 결과는 다음 위치에 저장됩니다.
+
+```text
+outputs/tables/model_comparison.csv
+outputs/tables/hybrid_weight_search.csv
+```
+
+Protocol A는 Food.com의 Validation 데이터로 Hybrid 가중치를 선택하고 Test 데이터로 최종 비교합니다. 보고서에 기재된 수치는 `--users 100` 표본 실행 결과이며, 전체 사용자 평가 결과로 해석하면 안 됩니다.
+
+### Protocol B: 부분 식재료 검색 평가
+
+```bash
+uv run python -m fridge_rescue.evaluation.run_protocol_b \
+  --targets-per-dataset 100 \
+  --recipenlg-candidates 100000
+```
+
+- `--targets-per-dataset 100`: 데이터셋별 목표 레시피 수입니다.
+- `--recipenlg-candidates 100000`: RecipeNLG 외부 검색 평가에 사용할 후보 레시피 표본 수입니다.
+- 고정 seed는 `42, 43, 44`, 재료 유지율은 `50%, 70%, 90%`, 추천 상위 개수는 10개입니다.
+
+실행 결과는 다음 위치에 저장됩니다.
+
+```text
+outputs/tables/protocol_b_results.csv
+outputs/tables/protocol_b_summary.csv
+```
+
+RecipeNLG의 전체 외부 카탈로그와 실제 평가 후보 표본은 구분해야 합니다. 이 설정의 결과는 전체 RecipeNLG 카탈로그 성능을 의미하지 않습니다.
+
+## 현재 구현 범위
+
+- **Content-based:** Streamlit 앱에 연결되어 있으며, 사용자가 입력한 재료로 Jaccard 기반 레시피 검색을 수행합니다.
+- **Item-KNN:** 사용자-레시피 평점 상호작용을 이용한 협업 필터링 구현 및 Protocol A 평가 코드가 포함되어 있습니다.
+- **Hybrid:** 콘텐츠 점수와 Item-KNN 점수를 결합하는 추천 로직 및 Validation 기반 가중치 탐색·Protocol A 평가 코드가 포함되어 있습니다.
+- **Streamlit UI 제한:** 현재 앱 화면에서 실제로 연결된 추천 방식은 Content-based입니다. Collaborative 및 Hybrid UI는 아직 모델과 연결되지 않았으므로, 앱에서 사용 가능한 기능으로 소개하지 않습니다.
+- **RecipeNLG:** 사용자 평점 이력이 없으므로 협업 필터링 평가가 아닌 콘텐츠 기반 외부 검색 평가에만 사용합니다.
+
+## 테스트 결과
+
+개발 환경에서 다음 명령으로 자동화 테스트와 코드 품질 검사를 수행할 수 있습니다.
+
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
+
+현재 프로젝트 작업 기록에서는 pytest 30개 테스트 통과 및 Ruff 검사 통과를 확인했습니다. 다만 실행 환경과 의존성 버전에 따라 결과가 달라질 수 있으므로, 제출 직전에 위 명령을 다시 실행해 확인하세요.
+
+## 실험 결과 요약
+
+아래 값은 이번 보고서 작성에 사용한 실행 기록의 요약입니다. 코드를 수정하거나 데이터·실험 설정이 달라지면 동일한 결과가 재현된다고 보장할 수 없습니다.
+
+### Protocol A — Food.com (100명 표본)
+
+| Model | Precision@10 | Recall@10 | NDCG@10 |
+|---|---:|---:|---:|
+| Content-Based | 0.001000 | 0.000133 | 0.000851 |
+| Item-KNN | 0.002000 | 0.002476 | 0.001969 |
+| Hybrid | 0.002000 | 0.010133 | 0.003742 |
+
+Validation에서 선택된 가중치는 콘텐츠 0.6, Item-KNN 0.4이며, 별도 카테고리 가중치는 0.0입니다.
+
+### Protocol B — Partial-Ingredient Retrieval
+
+| Dataset | Ingredient Retention | Hit@10 | MRR@10 |
+|---|---:|---:|---:|
+| Food.com Test | 50% | 0.946667 | 0.855001 |
+| Food.com Test | 70% | 0.990000 | 0.962452 |
+| Food.com Test | 90% | 0.990000 | 0.973286 |
+| RecipeNLG External | 50% | 0.850000 | 0.664926 |
+| RecipeNLG External | 70% | 0.980000 | 0.896884 |
+| RecipeNLG External | 90% | 0.980000 | 0.932667 |
+
+Protocol B는 데이터셋별 목표 레시피 100개, seed 42·43·44의 반복 실행을 요약한 값입니다. RecipeNLG 결과는 약 100,000개 후보 표본 기반입니다.
+
+## 보고서 및 발표 자료
+
+최종 보고서와 발표 자료는 과제 제출용 산출물로 별도 관리합니다. GitHub에는 코드, 실행·재현 방법, 데이터 출처, 핵심 실험 결과를 중심으로 공개하고, 원본 데이터와 대용량 중간 산출물은 업로드하지 않습니다.
