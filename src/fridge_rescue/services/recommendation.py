@@ -1,4 +1,5 @@
 """Recommendation service connecting UI requests to available rankers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -49,7 +50,9 @@ Ranker = Callable[[RecommendationRequest], pd.DataFrame]
 
 class RecommendationService:
     def __init__(
-        self, content_recommender: ContentBasedRecommender, *,
+        self,
+        content_recommender: ContentBasedRecommender,
+        *,
         collaborative_ranker: Ranker | None = None,
         hybrid_ranker: Ranker | None = None,
     ) -> None:
@@ -95,6 +98,4 @@ class RecommendationService:
             )
             fallback_reason = "협업 필터링 근거가 부족해 콘텐츠 기반 추천으로 전환했습니다."
 
-        return RecommendationResponse(
-            results, requested_mode, effective_mode, fallback_reason
-        )
+        return RecommendationResponse(results, requested_mode, effective_mode, fallback_reason)

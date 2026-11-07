@@ -165,11 +165,13 @@ def main() -> None:
         row.recipe_id: _as_ingredient_set(row.normalized_ingredients)
         for row in recipe_catalog[["recipe_id", "normalized_ingredients"]].itertuples(index=False)
     }
-    titles = dict(zip(
-        recipe_catalog["recipe_id"],
-        recipe_catalog["title"].astype(str),
-        strict=True,
-    ))
+    titles = dict(
+        zip(
+            recipe_catalog["recipe_id"],
+            recipe_catalog["title"].astype(str),
+            strict=True,
+        )
+    )
 
     train_seen = train.groupby("user_id")["recipe_id"].apply(set).to_dict()
     validation_seen = validation.groupby("user_id")["recipe_id"].apply(set).to_dict()
@@ -220,7 +222,10 @@ def main() -> None:
         test_positions = [i for i, rid in enumerate(candidate_ids) if rid not in test_blocked]
 
         def ranked_for(
-            positions, scores, coverage_values=None, missing_values=None,
+            positions,
+            scores,
+            coverage_values=None,
+            missing_values=None,
             use_content_ties=False,
         ):
             ids = [candidate_ids[i] for i in positions]

@@ -23,8 +23,12 @@ htmlcov/
 # Raw and generated data
 data/raw/*
 !data/raw/.gitkeep
-data/processed/*
+data/processed/**
 !data/processed/.gitkeep
+!data/processed/foodcom/
+!data/processed/foodcom/recipes.parquet
+!data/processed/foodcom/splits/
+!data/processed/foodcom/splits/train.parquet
 
 # Model artifacts
 models/*

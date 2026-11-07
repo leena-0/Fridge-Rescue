@@ -1,4 +1,5 @@
 """Hybrid recommendation combining ingredient fit and collaborative filtering."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -37,49 +38,54 @@ class HybridRecommender:
         collaborative = self.collaborative_recommender.recommend(
             user_id, top_k=candidate_count, max_minutes=max_minutes
         )
-        collaborative = collaborative.reindex(columns=[
-            "recipe_id", "title", "predicted_preference", "minutes", "source"
-        ])
+        collaborative = collaborative.reindex(
+            columns=["recipe_id", "title", "predicted_preference", "minutes", "source"]
+        )
 
         if content.empty and collaborative.empty:
-            return pd.DataFrame(columns=RECOMMENDATION_COLUMNS + [
-                "predicted_preference", "hybrid_score"
-            ])
+            return pd.DataFrame(
+                columns=RECOMMENDATION_COLUMNS + ["predicted_preference", "hybrid_score"]
+            )
 
         # Rename content metadata before merging. This avoids Pandas creating
         # minutes_x/minutes_y when the two recommenders both return minutes.
-        content = content.rename(columns={
-            "title": "content_title",
-            "minutes": "content_minutes",
-            "source": "content_source",
-        })
-        collaborative = collaborative.rename(columns={
-            "title": "cf_title",
-            "minutes": "cf_minutes",
-            "source": "cf_source",
-        })
+        content = content.rename(
+            columns={
+                "title": "content_title",
+                "minutes": "content_minutes",
+                "source": "content_source",
+            }
+        )
+        collaborative = collaborative.rename(
+            columns={
+                "title": "cf_title",
+                "minutes": "cf_minutes",
+                "source": "cf_source",
+            }
+        )
         merged = content.merge(
-            collaborative[["recipe_id", "cf_title", "predicted_preference",
-                           "cf_minutes", "cf_source"]],
-            on="recipe_id", how="outer", validate="one_to_one",
+            collaborative[
+                ["recipe_id", "cf_title", "predicted_preference", "cf_minutes", "cf_source"]
+            ],
+            on="recipe_id",
+            how="outer",
+            validate="one_to_one",
         )
 
         merged["title"] = merged["content_title"].fillna(merged["cf_title"])
         merged["minutes"] = merged["content_minutes"].combine_first(merged["cf_minutes"])
         merged["source"] = merged["content_source"].fillna(merged["cf_source"]).fillna("Food.com")
-        merged["content_score"] = pd.to_numeric(
-            merged["content_score"], errors="coerce"
-        ).fillna(0.0).clip(0.0, 1.0)
-        merged["ingredient_coverage"] = pd.to_numeric(
-            merged["ingredient_coverage"], errors="coerce"
-        ).fillna(0.0).clip(0.0, 1.0)
+        merged["content_score"] = (
+            pd.to_numeric(merged["content_score"], errors="coerce").fillna(0.0).clip(0.0, 1.0)
+        )
+        merged["ingredient_coverage"] = (
+            pd.to_numeric(merged["ingredient_coverage"], errors="coerce").fillna(0.0).clip(0.0, 1.0)
+        )
         preference = pd.to_numeric(merged["predicted_preference"], errors="coerce")
         merged["preference_score"] = ((preference - 1.0) / 4.0).clip(0.0, 1.0).fillna(0.0)
 
         alpha, beta = self.weights_for_user(user_id)
-        merged["hybrid_score"] = (
-            alpha * merged["content_score"] + beta * merged["preference_score"]
-        )
+        merged["hybrid_score"] = alpha * merged["content_score"] + beta * merged["preference_score"]
 
         if max_minutes is not None:
             minutes = pd.to_numeric(merged["minutes"], errors="coerce")
@@ -100,12 +106,15 @@ class HybridRecommender:
         merged["missing_ingredients"] = merged["missing_ingredients"].apply(
             lambda value: value if isinstance(value, list) else []
         )
-        merged["missing_count"] = pd.to_numeric(
-            merged["missing_count"], errors="coerce"
-        ).fillna(0).astype(int)
+        merged["missing_count"] = (
+            pd.to_numeric(merged["missing_count"], errors="coerce").fillna(0).astype(int)
+        )
 
-        return merged.sort_values(
-            ["hybrid_score", "recipe_id"], ascending=[False, True], kind="stable"
-        ).reindex(columns=RECOMMENDATION_COLUMNS + [
-            "predicted_preference", "hybrid_score"
-        ]).head(top_k).reset_index(drop=True)
+        return (
+            merged.sort_values(
+                ["hybrid_score", "recipe_id"], ascending=[False, True], kind="stable"
+            )
+            .reindex(columns=RECOMMENDATION_COLUMNS + ["predicted_preference", "hybrid_score"])
+            .head(top_k)
+            .reset_index(drop=True)
+        )
