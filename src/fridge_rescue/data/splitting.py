@@ -433,9 +433,7 @@ def run_data_split(
     )
     recipenlg_path = config.processed_data_dir / "recipenlg" / "recipes.parquet"
     recipenlg_recipes = (
-        _read_processed_recipes(recipenlg_path)
-        if recipenlg_path.is_file()
-        else None
+        _read_processed_recipes(recipenlg_path) if recipenlg_path.is_file() else None
     )
 
     processed_foodcom_ids = set(
@@ -477,12 +475,8 @@ def run_data_split(
     if external is not None:
         external_dir = config.processed_data_dir / "recipenlg"
         external_dir.mkdir(parents=True, exist_ok=True)
-        external.recipes.to_parquet(
-            external_dir / "external_test_recipes.parquet", index=False
-        )
-        external.removals.to_csv(
-            table_dir / "recipenlg_overlap_removals.csv", index=False
-        )
+        external.recipes.to_parquet(external_dir / "external_test_recipes.parquet", index=False)
+        external.removals.to_csv(table_dir / "recipenlg_overlap_removals.csv", index=False)
     report = {
         "max_interactions": max_interactions,
         "foodcom_catalog_alignment": catalog_alignment,
